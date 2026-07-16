@@ -198,6 +198,13 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     ref.read(audioServiceProvider).playClickSound();
   }
 
+  void triggerWrongAnswerShake() {
+    state = state.copyWith(isWrongAnswerShake: true);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      state = state.copyWith(isWrongAnswerShake: false);
+    });
+  }
+
   void chooseOption(String option) {
     if (state.activeWord == null || state.isLevelComplete) return;
     
@@ -223,21 +230,23 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       ref.read(audioServiceProvider).playCorrectSound();
 
       final db = ref.read(databaseServiceProvider);
+      final bool alreadyCompleted = state.completedLevels.contains(state.currentLevel);
+      
       db.addCompletedLevel(state.currentLevel);
 
       final List<int> updatedCompleted = List<int>.from(state.completedLevels);
-      if (!updatedCompleted.contains(state.currentLevel)) {
+      if (!alreadyCompleted) {
         updatedCompleted.add(state.currentLevel);
       }
       
       final streakMultiplier = 1 + (state.streak ~/ 5) * 0.1;
-      final starsEarned = (10 * streakMultiplier).round();
+      final starsEarned = alreadyCompleted ? 0 : (10 * streakMultiplier).round();
 
       state = state.copyWith(
         isLevelComplete: true,
         completedLevels: updatedCompleted,
         stars: state.stars + starsEarned,
-        streak: state.streak + 1,
+        streak: alreadyCompleted ? state.streak : state.streak + 1,
       );
       _saveProgress();
 

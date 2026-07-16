@@ -22,6 +22,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   List<String> _unscramblePool = [];
   List<String> _unscrambleSelectionOrder = [];
   List<String> _keyboardLetters = [];
+  Set<String> _disabledKeyboardLetters = {};
+  Set<int> _disabledPoolIndices = {};
+  Set<int> _wrongSlotIndices = {};
 
   @override
   void initState() {
@@ -51,6 +54,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         _unscramblePool = List<String>.from(letters);
         _unscrambleSelectionOrder = [];
         _activeSlotIndex = 0;
+        _disabledKeyboardLetters = {};
+        _disabledPoolIndices = {};
+        _wrongSlotIndices = {};
       });
     } else if (word.gameMode == GameMode.missingLetters) {
       // Find what slots are empty (need spelling)
@@ -59,46 +65,106 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         _activeSlotIndex = firstEmpty != -1 ? firstEmpty : 0;
         // Keyboard letters can be standard letters or a filtered list
         _keyboardLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        _disabledKeyboardLetters = {};
+        _disabledPoolIndices = {};
+        _wrongSlotIndices = {};
       });
     }
   }
 
-  void _onLetterTap(String letter) {
+  void _onLetterTap(String letter) async {
     final gameState = ref.read(gameStateProvider);
     final word = gameState.activeWord;
     if (word == null) return;
 
     if (word.gameMode == GameMode.missingLetters) {
-      ref.read(gameStateProvider.notifier).fillLetter(_activeSlotIndex, letter);
-      
-      // Auto move to the next empty slot
-      final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
-      int nextEmpty = updatedLetters.indexOf('', _activeSlotIndex + 1);
-      if (nextEmpty == -1) {
-        nextEmpty = updatedLetters.indexOf(''); // wrap around to beginning
-      }
-      
-      if (nextEmpty != -1) {
+      final correctLetter = word.word[_activeSlotIndex].toUpperCase();
+      if (letter.toUpperCase() == correctLetter) {
+        ref.read(gameStateProvider.notifier).fillLetter(_activeSlotIndex, letter);
+        
+        // Correct letter entered: enable all keyboard letters again
         setState(() {
-          _activeSlotIndex = nextEmpty;
+          _disabledKeyboardLetters.clear();
         });
+
+        // Auto move to the next empty slot
+        final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
+        int nextEmpty = updatedLetters.indexOf('', _activeSlotIndex + 1);
+        if (nextEmpty == -1) {
+          nextEmpty = updatedLetters.indexOf(''); // wrap around to beginning
+        }
+        
+        if (nextEmpty != -1) {
+          setState(() {
+            _activeSlotIndex = nextEmpty;
+          });
+        }
+      } else {
+        // Wrong letter!
+        final wrongIndex = _activeSlotIndex;
+        // Temporarily fill slot in the UI so they see the letter they pressed
+        ref.read(gameStateProvider.notifier).fillLetter(wrongIndex, letter);
+        setState(() {
+          _wrongSlotIndices.add(wrongIndex);
+        });
+
+        ref.read(audioServiceProvider).playWrongSound();
+        ref.read(gameStateProvider.notifier).triggerWrongAnswerShake();
+
+        // Let them see it is incorrect (red & shake)
+        await Future.delayed(const Duration(milliseconds: 600));
+
+        // Reset the slot back to empty/placeholder and disable the keyboard key
+        if (mounted) {
+          ref.read(gameStateProvider.notifier).clearLetter(wrongIndex);
+          setState(() {
+            _wrongSlotIndices.remove(wrongIndex);
+            _disabledKeyboardLetters.add(letter.toUpperCase());
+          });
+        }
       }
     }
   }
 
-  void _onUnscrambleTileTap(int poolIndex, String letter) {
+  void _onUnscrambleTileTap(int poolIndex, String letter) async {
     final gameState = ref.read(gameStateProvider);
-    if (gameState.isLevelComplete) return;
+    final word = gameState.activeWord;
+    if (word == null || gameState.isLevelComplete) return;
 
     final firstEmptyIdx = gameState.userAnswerLetters.indexOf('');
     if (firstEmptyIdx != -1) {
-      // Fill the slot
-      ref.read(gameStateProvider.notifier).fillLetter(firstEmptyIdx, letter);
-      
-      setState(() {
-        // Track the poolIndex that filled this slot
-        _unscrambleSelectionOrder.add(poolIndex.toString());
-      });
+      final correctLetter = word.word[firstEmptyIdx].toUpperCase();
+      if (letter.toUpperCase() == correctLetter) {
+        ref.read(gameStateProvider.notifier).fillLetter(firstEmptyIdx, letter);
+        
+        setState(() {
+          _unscrambleSelectionOrder.add(poolIndex.toString());
+          
+          // Move active highlight to the next empty block
+          final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
+          final nextEmpty = updatedLetters.indexOf('');
+          _activeSlotIndex = nextEmpty != -1 ? nextEmpty : 0;
+        });
+      } else {
+        // Wrong letter!
+        final wrongIndex = firstEmptyIdx;
+        ref.read(gameStateProvider.notifier).fillLetter(wrongIndex, letter);
+        setState(() {
+          _wrongSlotIndices.add(wrongIndex);
+        });
+
+        ref.read(audioServiceProvider).playWrongSound();
+        ref.read(gameStateProvider.notifier).triggerWrongAnswerShake();
+
+        await Future.delayed(const Duration(milliseconds: 600));
+
+        if (mounted) {
+          ref.read(gameStateProvider.notifier).clearLetter(wrongIndex);
+          setState(() {
+            _wrongSlotIndices.remove(wrongIndex);
+          });
+        }
+      }
     }
   }
 
@@ -113,6 +179,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         ref.read(gameStateProvider.notifier).clearLetter(slotIndex);
         setState(() {
           _activeSlotIndex = slotIndex;
+          _disabledKeyboardLetters.clear();
         });
       }
     } else if (word.gameMode == GameMode.unscramble) {
@@ -126,6 +193,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         if (_unscrambleSelectionOrder.isNotEmpty) {
           _unscrambleSelectionOrder.removeLast();
         }
+        setState(() {
+          _activeSlotIndex = slotIndex;
+        });
       }
     }
   }
@@ -182,10 +252,56 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
                   const SizedBox(height: 14),
 
-                  // DIFFICULTY LABEL
+                   // DIFFICULTY LABEL
                   Text(
                     'Difficulty: ${word.difficultyName}',
                     style: theme.textTheme.bodyMedium,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // GAME MODE INSTRUCTION HINT
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.secondary.withOpacity(0.15),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          word.gameMode == GameMode.missingLetters
+                              ? Icons.edit_note_rounded
+                              : word.gameMode == GameMode.unscramble
+                                  ? Icons.shuffle_rounded
+                                  : Icons.check_circle_outline_rounded,
+                          color: theme.colorScheme.secondary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            word.gameMode == GameMode.missingLetters
+                                ? 'Fill in the empty blocks (_) to complete the spelling!'
+                                : word.gameMode == GameMode.unscramble
+                                    ? 'Tap the letters below in the correct order to unscramble the word!'
+                                    : 'Tap the correct spelling of the word!',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.85),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
                   const Spacer(flex: 2),
@@ -300,19 +416,27 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       alignment: WrapAlignment.center,
       children: List.generate(wordLength, (index) {
         final letter = gameState.userAnswerLetters[index];
+        final bool isEmpty = letter.isEmpty;
         final bool isPrefilled = word.gameMode == GameMode.missingLetters && 
             word.word[index] == letter && 
-            gameState.userAnswerLetters[index].isNotEmpty;
-        final bool isActive = word.gameMode == GameMode.missingLetters && index == _activeSlotIndex;
+            !isEmpty;
+        final bool isActive = (word.gameMode == GameMode.missingLetters || word.gameMode == GameMode.unscramble) && index == _activeSlotIndex;
+        final bool isWrong = _wrongSlotIndices.contains(index);
 
         Color borderCol = theme.dividerColor.withOpacity(0.12);
         Color bgCol = theme.cardColor;
 
-        if (isActive) {
+        if (isWrong) {
+          borderCol = theme.colorScheme.error;
+          bgCol = theme.colorScheme.error.withOpacity(0.1);
+        } else if (isActive) {
           borderCol = theme.colorScheme.primary;
-          bgCol = theme.colorScheme.primary.withOpacity(0.05);
+          bgCol = theme.colorScheme.primary.withOpacity(0.08);
         } else if (isPrefilled) {
-          bgCol = theme.dividerColor.withOpacity(0.05);
+          bgCol = theme.dividerColor.withOpacity(0.08);
+        } else if (isEmpty) {
+          borderCol = theme.colorScheme.primary.withOpacity(0.35);
+          bgCol = theme.colorScheme.primary.withOpacity(0.02);
         }
 
         return GestureDetector(
@@ -323,20 +447,27 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             decoration: BoxDecoration(
               color: bgCol,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderCol, width: 2),
+              border: Border.all(
+                color: borderCol, 
+                width: isWrong ? 2.5 : (isActive ? 2.5 : (isEmpty ? 1.5 : 2.0)),
+              ),
             ),
             alignment: Alignment.center,
             child: Text(
-              letter,
+              isEmpty ? '' : letter,
               style: theme.textTheme.displayMedium?.copyWith(
                 fontSize: calculatedSize * 0.45,
                 fontWeight: FontWeight.bold,
-                color: isPrefilled 
-                    ? theme.textTheme.bodyMedium?.color?.withOpacity(0.5)
-                    : theme.colorScheme.onSurface,
+                color: isWrong
+                    ? theme.colorScheme.error
+                    : (isEmpty
+                        ? theme.colorScheme.primary.withOpacity(0.4)
+                        : (isPrefilled 
+                            ? theme.textTheme.bodyMedium?.color?.withOpacity(0.5)
+                            : theme.colorScheme.onSurface)),
               ),
             ),
-          ).animate(target: letter.isNotEmpty ? 1 : 0)
+          ).animate()
            .scale(duration: 150.ms, curve: Curves.easeOutBack),
         );
       }),
@@ -402,13 +533,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             children: List.generate(_unscramblePool.length, (index) {
               final letter = _unscramblePool[index];
               final bool isUsed = _unscrambleSelectionOrder.contains(index.toString());
+              final bool isDisabled = _disabledPoolIndices.contains(index);
 
-              return Opacity(
-                opacity: isUsed ? 0.3 : 1.0,
+              return Visibility(
+                visible: !isUsed,
                 child: PopButton(
                   backgroundColor: theme.colorScheme.primary,
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  onTap: isUsed ? null : () => _onUnscrambleTileTap(index, letter),
+                  onTap: () => _onUnscrambleTileTap(index, letter),
                   child: Text(
                     letter,
                     style: theme.textTheme.displayMedium?.copyWith(
@@ -437,21 +569,29 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       runSpacing: 6,
       alignment: WrapAlignment.center,
       children: _keyboardLetters.map((letter) {
+        final bool isDisabled = _disabledKeyboardLetters.contains(letter.toUpperCase());
         return SizedBox(
           width: 32,
           height: 44,
           child: PopButton(
             alignment: Alignment.center,
             borderRadius: BorderRadius.circular(8),
-            backgroundColor: theme.cardColor,
+            backgroundColor: isDisabled ? theme.disabledColor.withOpacity(0.12) : theme.cardColor,
             padding: EdgeInsets.zero,
-            border: Border.all(color: theme.dividerColor.withOpacity(0.08), width: 1),
+            border: Border.all(
+              color: isDisabled 
+                  ? theme.disabledColor.withOpacity(0.15) 
+                  : theme.dividerColor.withOpacity(0.08), 
+              width: 1,
+            ),
             boxShadow: const [],
-            onTap: () => _onLetterTap(letter),
+            onTap: isDisabled ? null : () => _onLetterTap(letter),
             child: Text(
               letter,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
+                color: isDisabled 
+                    ? theme.disabledColor.withOpacity(0.4) 
+                    : theme.colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),

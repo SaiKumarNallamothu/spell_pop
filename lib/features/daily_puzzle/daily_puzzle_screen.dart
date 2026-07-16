@@ -275,12 +275,18 @@ class _DailyPuzzleScreenState extends ConsumerState<DailyPuzzleScreen> {
                                           // ad show fail fallback handled by service
                                         });
                                       },
-                                      child: const Row(
+                                      child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.video_library_rounded, color: Colors.white),
-                                          SizedBox(width: 8),
-                                          Text('Watch Video to Double! (+50⭐)'),
+                                          const Icon(Icons.video_library_rounded, color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          const Flexible(
+                                            child: Text(
+                                              'Watch Video to Double! (+50⭐)',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),

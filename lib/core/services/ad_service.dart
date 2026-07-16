@@ -13,16 +13,20 @@ class AdService {
   static const String _androidRewardedId = 'ca-app-pub-3940256099942544/5224354917';
   static const String _iosRewardedId = 'ca-app-pub-3940256099942544/1712485313';
 
+  // Production AdMob App & Unit IDs
+  static const String appId = 'ca-app-pub-9215767386390942~4335980180';
+  static const String bannerAdId = 'ca-app-pub-9215767386390942/8570738669';
+  static const String interstitialAdId = 'ca-app-pub-9215767386390942/8241913093';
+  static const String rewardedInterstitialAdId = 'ca-app-pub-9215767386390942/9012637501';
+  static const String nativeAdId = 'ca-app-pub-9215767386390942/9363423070';
+  static const String appOpenAdId = 'ca-app-pub-9215767386390942/5070477351';
+
   String get interstitialAdUnitId {
-    if (defaultTargetPlatform == TargetPlatform.android) return _androidInterstitialId;
-    if (defaultTargetPlatform == TargetPlatform.iOS) return _iosInterstitialId;
-    return '';
+    return interstitialAdId;
   }
 
   String get rewardedAdUnitId {
-    if (defaultTargetPlatform == TargetPlatform.android) return _androidRewardedId;
-    if (defaultTargetPlatform == TargetPlatform.iOS) return _iosRewardedId;
-    return '';
+    return rewardedInterstitialAdId;
   }
 
   Future<void> init() async {
