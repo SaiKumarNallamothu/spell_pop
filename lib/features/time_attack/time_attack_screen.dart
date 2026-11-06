@@ -25,7 +25,6 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
   @override
   void initState() {
     super.initState();
-    // Start Time Attack mode on load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(gameStateProvider.notifier).startTimeAttack();
       _initializeInputs();
@@ -56,30 +55,26 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
     final correctLetter = word.word[_activeSlotIndex].toUpperCase();
     if (letter.toUpperCase() == correctLetter) {
       ref.read(gameStateProvider.notifier).fillLetter(_activeSlotIndex, letter);
-      
-      // Correct letter entered: enable all keyboard letters again
+
       setState(() {
         _disabledKeyboardLetters.clear();
       });
 
-      // Auto check if fully filled, otherwise move to next slot
       final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
       int nextEmpty = updatedLetters.indexOf('', _activeSlotIndex + 1);
       if (nextEmpty == -1) {
-        nextEmpty = updatedLetters.indexOf(''); // wrap around
+        nextEmpty = updatedLetters.indexOf('');
       }
-      
+
       if (nextEmpty != -1) {
         setState(() {
           _activeSlotIndex = nextEmpty;
         });
       } else {
-        // Auto check and transition
         ref.read(gameStateProvider.notifier).submitTimeAttackAnswer();
         _initializeInputs();
       }
     } else {
-      // Wrong letter!
       final wrongIndex = _activeSlotIndex;
       ref.read(gameStateProvider.notifier).fillLetter(wrongIndex, letter);
       setState(() {
@@ -106,8 +101,6 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
     final word = gameState.activeWord;
     if (word == null) return;
 
-    // Prefilled letters in Time Attack are allowed to be cleared just in case,
-    // but typically let the user clear their typed letters.
     ref.read(gameStateProvider.notifier).clearLetter(slotIndex);
     setState(() {
       _activeSlotIndex = slotIndex;
@@ -119,7 +112,7 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     final gameState = ref.watch(gameStateProvider);
     final word = gameState.activeWord;
 
@@ -128,6 +121,7 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
     }
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           SafeArea(
@@ -135,97 +129,97 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
               child: Column(
                 children: [
-                  // HEADER STATS (Score, Timer, High Score)
-                  _buildHeader(theme, gameState),
-                  
+                  // 1. TOP STATS BAR (SCORE, CIRCULAR TIMER, HIGH SCORE)
+                  _buildHeader(theme, gameState, isDark),
+
                   const Spacer(flex: 1),
 
-                  // TOPIC INDICATOR
+                  // 2. CATEGORY TAG
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.error.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppTheme.coralPink.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.coralPink.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Text(
                       'CATEGORY: ${word.category.toUpperCase()}',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.bold,
+                        color: AppTheme.coralPink,
+                        fontWeight: FontWeight.w800,
                         fontSize: 12,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
 
                   const SizedBox(height: 10),
 
-                  // GAME MODE INSTRUCTION HINT
+                  // 3. INSTRUCTION NOTE
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.colorScheme.secondary.withOpacity(0.15),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          word.gameMode == GameMode.missingLetters
-                              ? Icons.edit_note_rounded
-                              : word.gameMode == GameMode.unscramble
-                                  ? Icons.shuffle_rounded
-                                  : Icons.check_circle_outline_rounded,
-                          color: theme.colorScheme.secondary,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            word.gameMode == GameMode.missingLetters
-                                ? 'Fill in the empty blocks (_) to complete the spelling!'
-                                : word.gameMode == GameMode.unscramble
-                                    ? 'Tap the letters below in the correct order to unscramble the word!'
-                                    : 'Tap the correct spelling of the word!',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.85),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                      color: isDark
+                          ? AppTheme.darkSurfaceColor
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
+                    ),
+                    child: Text(
+                      'Type fast to earn extra seconds and maximize your score!',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
 
                   const Spacer(flex: 2),
 
-                  // PUZZLE CONTAINER
-                  _buildPuzzleArea(theme, gameState, word)
+                  // 4. PUZZLE TILES
+                  _buildPuzzleArea(theme, gameState, word, isDark)
                       .animate(target: gameState.isWrongAnswerShake ? 1 : 0)
                       .shake(duration: 300.ms, curve: Curves.easeInOut),
 
                   const Spacer(flex: 2),
 
-                  // INPUT CONTAINER
-                  _buildInputPanel(theme, gameState, word),
+                  // 5. KEYBOARD / SELECTION
+                  _buildInputPanel(theme, gameState, word, isDark),
 
                   const Spacer(flex: 2),
 
-                  // QUIT BUTTON (DURING GAME)
+                  // 6. QUIT BUTTON
                   TextButton.icon(
                     onPressed: () {
                       ref.read(gameStateProvider.notifier).exitTimeAttack();
                       context.pop();
                     },
-                    icon: const Icon(Icons.exit_to_app_rounded),
+                    icon: const Icon(Icons.exit_to_app_rounded, size: 20),
                     label: const Text('Exit Challenge'),
-                    style: TextButton.styleFrom(foregroundColor: theme.disabledColor),
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                      textStyle: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -240,8 +234,8 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
     );
   }
 
-  // --- Header Area (Timer & Score) ---
-  Widget _buildHeader(ThemeData theme, GameSessionState gameState) {
+  // --- Header Area ---
+  Widget _buildHeader(ThemeData theme, GameSessionState gameState, bool isDark) {
     final bool isCritical = gameState.timeAttackSecondsRemaining <= 10;
     final progress = gameState.timeAttackSecondsRemaining / 60.0;
 
@@ -249,89 +243,140 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         // Score Badge
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'SCORE',
-              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              '${gameState.timeAttackScore}',
-              style: theme.textTheme.displayMedium?.copyWith(
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                color: theme.colorScheme.primary,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
-            ),
-          ],
-        ),
-
-        // Visual Countdown Timer
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 65,
-              height: 65,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 6,
-                backgroundColor: theme.dividerColor.withOpacity(0.05),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isCritical ? theme.colorScheme.error : theme.colorScheme.success,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SCORE',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
                 ),
               ),
-            ),
-            Text(
-              '${gameState.timeAttackSecondsRemaining}s',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: isCritical ? theme.colorScheme.error : theme.colorScheme.onSurface,
+              Text(
+                '${gameState.timeAttackScore}',
+                style: theme.textTheme.displayMedium?.copyWith(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.primaryColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
+
+        // Glowing Visual Countdown Timer
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: (isCritical ? AppTheme.errorColor : AppTheme.mintGreen)
+                    .withValues(alpha: 0.2),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 66,
+                height: 66,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 6,
+                  backgroundColor: theme.dividerColor.withValues(alpha: 0.08),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isCritical ? AppTheme.errorColor : AppTheme.mintGreen,
+                  ),
+                ),
+              ),
+              Text(
+                '${gameState.timeAttackSecondsRemaining}s',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 17,
+                  color: isCritical ? AppTheme.errorColor : theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
         ),
 
         // High Score Badge
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              'HIGH SCORE',
-              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              '${gameState.timeAttackHighScore}',
-              style: theme.textTheme.displayMedium?.copyWith(
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                color: theme.colorScheme.secondary,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'RECORD',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              Text(
+                '${gameState.timeAttackHighScore}',
+                style: theme.textTheme.displayMedium?.copyWith(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.sunnyYellow,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
   // --- Puzzle Letters ---
-  Widget _buildPuzzleArea(ThemeData theme, GameSessionState gameState, WordModel word) {
+  Widget _buildPuzzleArea(ThemeData theme, GameSessionState gameState, WordModel word, bool isDark) {
     if (word.gameMode == GameMode.chooseSpelling) {
       return Text(
         'Which spelling is correct?',
-        style: theme.textTheme.displayMedium?.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
+        style: theme.textTheme.displayMedium?.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
         textAlign: TextAlign.center,
       );
     }
 
     final double screenWidth = MediaQuery.of(context).size.width;
     final int wordLength = word.word.length;
-    final double spacing = wordLength > 8 ? 4.0 : 8.0;
+    final double spacing = wordLength > 8 ? 6.0 : 8.0;
     final double paddingHorizontal = 40.0;
     final double availableWidth = screenWidth - paddingHorizontal - ((wordLength - 1) * spacing);
-    final double calculatedSize = (availableWidth / wordLength).clamp(32.0, 48.0);
+    final double calculatedSize = (availableWidth / wordLength).clamp(34.0, 52.0);
 
     return Wrap(
       spacing: spacing,
@@ -340,54 +385,60 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
       children: List.generate(wordLength, (index) {
         final letter = gameState.userAnswerLetters[index];
         final bool isEmpty = letter.isEmpty;
-        final bool isPrefilled = word.gameMode == GameMode.missingLetters && 
-            word.word[index] == letter && 
+        final bool isPrefilled = word.gameMode == GameMode.missingLetters &&
+            word.word[index] == letter &&
             !isEmpty;
         final bool isActive = index == _activeSlotIndex;
         final bool isWrong = _wrongSlotIndices.contains(index);
 
-        Color borderCol = theme.dividerColor.withOpacity(0.12);
-        Color bgCol = theme.cardColor;
+        Color borderCol = isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : const Color(0xffe2e8f0);
+        Color bgCol = isDark ? AppTheme.darkSurfaceColor : Colors.white;
 
         if (isWrong) {
-          borderCol = theme.colorScheme.error;
-          bgCol = theme.colorScheme.error.withOpacity(0.1);
+          borderCol = AppTheme.errorColor;
+          bgCol = AppTheme.errorColor.withValues(alpha: 0.15);
         } else if (isActive) {
-          borderCol = theme.colorScheme.primary;
-          bgCol = theme.colorScheme.primary.withOpacity(0.08);
+          borderCol = AppTheme.coralPink;
+          bgCol = AppTheme.coralPink.withValues(alpha: 0.1);
         } else if (isPrefilled) {
-          bgCol = theme.dividerColor.withOpacity(0.08);
-        } else if (isEmpty) {
-          borderCol = theme.colorScheme.primary.withOpacity(0.35);
-          bgCol = theme.colorScheme.primary.withOpacity(0.02);
+          bgCol = isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xfff1f5f9);
         }
 
         return GestureDetector(
           onTap: () => _onSlotClear(index),
           child: Container(
             width: calculatedSize,
-            height: calculatedSize * 1.12,
+            height: calculatedSize * 1.2,
             decoration: BoxDecoration(
               color: bgCol,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: borderCol,
-                width: isWrong ? 2.5 : (isActive ? 2.5 : (isEmpty ? 1.5 : 2.0)),
+                width: isWrong ? 2.5 : (isActive ? 2.5 : 2.0),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             alignment: Alignment.center,
             child: Text(
               isEmpty ? '' : letter,
               style: theme.textTheme.displayMedium?.copyWith(
-                fontSize: calculatedSize * 0.45,
-                fontWeight: FontWeight.bold,
+                fontSize: calculatedSize * 0.5,
+                fontWeight: FontWeight.w800,
                 color: isWrong
-                    ? theme.colorScheme.error
-                    : (isEmpty
-                        ? theme.colorScheme.primary.withOpacity(0.4)
-                        : (isPrefilled
-                            ? theme.textTheme.bodyMedium?.color?.withOpacity(0.5)
-                            : theme.colorScheme.onSurface)),
+                    ? AppTheme.errorColor
+                    : (isPrefilled
+                        ? theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5)
+                        : theme.colorScheme.onSurface),
               ),
             ),
           ),
@@ -397,7 +448,7 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
   }
 
   // --- Input Panel ---
-  Widget _buildInputPanel(ThemeData theme, GameSessionState gameState, WordModel word) {
+  Widget _buildInputPanel(ThemeData theme, GameSessionState gameState, WordModel word, bool isDark) {
     if (word.gameMode == GameMode.chooseSpelling) {
       final options = word.options ?? [word.word, '${word.word}e', 'Aple'];
       return Column(
@@ -405,11 +456,11 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 70),
             child: PopButton(
-              backgroundColor: theme.cardColor,
-              border: Border.all(color: theme.dividerColor.withOpacity(0.1), width: 1.5),
-              boxShadow: const [],
+              backgroundColor: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+              depth: 3.5,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1), width: 1.5),
               onTap: () {
                 ref.read(gameStateProvider.notifier).chooseOption(opt);
                 ref.read(gameStateProvider.notifier).submitTimeAttackAnswer();
@@ -418,9 +469,10 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
                 opt,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           );
@@ -428,37 +480,39 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
       );
     }
 
-    // Default fast keyboard
     return Wrap(
-      spacing: 5,
-      runSpacing: 5,
+      spacing: 6,
+      runSpacing: 6,
       alignment: WrapAlignment.center,
       children: _keyboardLetters.map((letter) {
         final bool isDisabled = _disabledKeyboardLetters.contains(letter.toUpperCase());
         return SizedBox(
-          width: 32,
-          height: 44,
+          width: 33,
+          height: 48,
           child: PopButton(
             alignment: Alignment.center,
-            borderRadius: BorderRadius.circular(8),
-            backgroundColor: isDisabled ? theme.disabledColor.withOpacity(0.12) : theme.cardColor,
+            depth: isDisabled ? 0 : 3,
+            borderRadius: BorderRadius.circular(12),
+            backgroundColor: isDisabled
+                ? (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xfff1f5f9))
+                : (isDark ? AppTheme.darkSurfaceColor : Colors.white),
             padding: EdgeInsets.zero,
             border: Border.all(
-              color: isDisabled 
-                  ? theme.disabledColor.withOpacity(0.15) 
-                  : theme.dividerColor.withOpacity(0.08), 
-              width: 1,
+              color: isDisabled
+                  ? Colors.transparent
+                  : (isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xffe2e8f0)),
+              width: 1.2,
             ),
-            boxShadow: const [],
+            shadowColor: isDark ? Colors.black.withValues(alpha: 0.5) : const Color(0xffcbd5e1),
             onTap: isDisabled ? null : () => _onLetterTap(letter),
             child: Text(
               letter,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: isDisabled 
-                    ? theme.disabledColor.withOpacity(0.4) 
+                color: isDisabled
+                    ? (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.25))
                     : theme.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
               ),
             ),
           ),
@@ -467,21 +521,29 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
     );
   }
 
-  // --- Game Over Overlay ---
+  // --- 2025 Modern Rounded Game Over Overlay ---
   Widget _buildGameOverOverlay(ThemeData theme, GameSessionState gameState, bool isDark) {
-    final bool isNewHigh = gameState.timeAttackScore >= gameState.timeAttackHighScore && gameState.timeAttackScore > 0;
-    
+    final bool isNewHigh =
+        gameState.timeAttackScore >= gameState.timeAttackHighScore && gameState.timeAttackScore > 0;
+
     return Container(
-      color: Colors.black.withOpacity(0.7),
+      color: Colors.black.withValues(alpha: 0.75),
       alignment: Alignment.center,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Container(
           width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 400),
+          constraints: const BoxConstraints(maxWidth: 380),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xff1e293b) : Colors.white,
-            borderRadius: BorderRadius.circular(28),
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(34),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 30,
+                offset: const Offset(0, 12),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -490,52 +552,57 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.error.withOpacity(0.1),
+                  color: AppTheme.coralPink.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.timer_off_rounded,
-                  color: theme.colorScheme.error,
+                  color: AppTheme.coralPink,
                   size: 48,
                 ),
               ),
-              const SizedBox(height: 20),
-              
+              const SizedBox(height: 18),
+
               Text(
                 'TIME\'S UP!',
                 style: theme.textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.w900,
                   fontSize: 28,
-                  color: theme.colorScheme.error,
+                  color: AppTheme.coralPink,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
-                'High-speed spelling session completed.',
+                'Fast spelling run complete!',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
-              
-              const SizedBox(height: 24),
+
+              const SizedBox(height: 20),
 
               if (isNewHigh)
                 Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppTheme.sunnyYellow.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.sunnyYellow.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.emoji_events_rounded, color: Color(0xfff59e0b), size: 20),
-                      const SizedBox(width: 6),
+                      const Icon(Icons.emoji_events_rounded,
+                          color: AppTheme.sunnyYellow, size: 22),
+                      const SizedBox(width: 8),
                       Text(
-                        'NEW HIGH SCORE!',
+                        'NEW HIGH SCORE! 🏆',
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.secondary,
-                          fontWeight: FontWeight.bold,
+                          color: const Color(0xffb45309),
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ],
@@ -548,109 +615,111 @@ class _TimeAttackScreenState extends ConsumerState<TimeAttackScreen> {
                   Column(
                     children: [
                       Text('Final Score', style: theme.textTheme.bodyMedium),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         '${gameState.timeAttackScore}',
                         style: theme.textTheme.displayMedium?.copyWith(
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                     ],
                   ),
-                  Container(width: 1.5, height: 40, color: theme.dividerColor.withOpacity(0.15)),
+                  Container(
+                      width: 1.5,
+                      height: 40,
+                      color: theme.dividerColor.withValues(alpha: 0.15)),
                   Column(
                     children: [
                       Text('High Score', style: theme.textTheme.bodyMedium),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         '${gameState.timeAttackHighScore}',
                         style: theme.textTheme.displayMedium?.copyWith(
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
+                          color: AppTheme.sunnyYellow,
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 28),
+
+              const SizedBox(height: 26),
 
               if (!_hasContinued) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: PopButton(
-                        backgroundColor: theme.colorScheme.secondary,
-                        onTap: () {
-                          ref.read(adServiceProvider).showRewardedAd(() {
-                            ref.read(gameStateProvider.notifier).continueTimeAttack();
-                            setState(() {
-                              _hasContinued = true;
-                            });
-                          }, () {
-                            // ad fail handled by service
-                          });
-                        },
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.video_library_rounded, color: Colors.white),
-                            SizedBox(width: 8),
-                            Text('Watch Ad to Continue (+30s)'),
-                          ],
+                PopButton(
+                  backgroundColor: AppTheme.sunnyYellow,
+                  depth: 4.5,
+                  shadowColor: const Color(0xffd97706),
+                  onTap: () {
+                    ref.read(adServiceProvider).showRewardedAd(() {
+                      ref.read(gameStateProvider.notifier).continueTimeAttack();
+                      setState(() => _hasContinued = true);
+                    }, () {});
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.video_library_rounded, color: Color(0xff78350f), size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'CONTINUE (+30s)',
+                        style: TextStyle(
+                          color: Color(0xff78350f),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              PopButton(
+                backgroundColor: AppTheme.primaryColor,
+                depth: 4.5,
+                shadowColor: const Color(0xff4338ca),
+                onTap: () {
+                  ref.read(gameStateProvider.notifier).startTimeAttack();
+                  _initializeInputs();
+                  setState(() => _hasContinued = false);
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.replay_rounded, color: Colors.white, size: 22),
+                    SizedBox(width: 8),
+                    Text(
+                      'PLAY AGAIN',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: PopButton(
-                      backgroundColor: theme.colorScheme.primary,
-                      onTap: () {
-                        ref.read(gameStateProvider.notifier).startTimeAttack();
-                        _initializeInputs();
-                        setState(() {
-                          _hasContinued = false;
-                        });
-                      },
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.replay_rounded),
-                          SizedBox(width: 8),
-                          Text('Play Again'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ),
+
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () {
-                        ref.read(gameStateProvider.notifier).exitTimeAttack();
-                        context.go('/home');
-                      },
-                      child: Text(
-                        'Exit to Home',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontSize: 15,
-                          color: theme.disabledColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+
+              TextButton(
+                onPressed: () {
+                  ref.read(gameStateProvider.notifier).exitTimeAttack();
+                  context.go('/home');
+                },
+                child: Text(
+                  'Exit to Main Menu',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: 14,
+                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
+                ),
               ),
             ],
           ),

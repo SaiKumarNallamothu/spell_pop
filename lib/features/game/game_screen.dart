@@ -23,7 +23,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   List<String> _unscrambleSelectionOrder = [];
   List<String> _keyboardLetters = [];
   Set<String> _disabledKeyboardLetters = {};
-  Set<int> _disabledPoolIndices = {};
   Set<int> _wrongSlotIndices = {};
 
   @override
@@ -40,33 +39,27 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     if (word == null) return;
 
     if (word.gameMode == GameMode.unscramble) {
-      // Create a scrambled list of letters from the word
       final letters = word.word.split('');
       final rand = Random();
-      // Keep scrambling until it is different from the original word
       int attempt = 0;
       do {
         letters.shuffle(rand);
         attempt++;
       } while (letters.join() == word.word && attempt < 10);
-      
+
       setState(() {
         _unscramblePool = List<String>.from(letters);
         _unscrambleSelectionOrder = [];
         _activeSlotIndex = 0;
         _disabledKeyboardLetters = {};
-        _disabledPoolIndices = {};
         _wrongSlotIndices = {};
       });
     } else if (word.gameMode == GameMode.missingLetters) {
-      // Find what slots are empty (need spelling)
       int firstEmpty = gameState.userAnswerLetters.indexOf('');
       setState(() {
         _activeSlotIndex = firstEmpty != -1 ? firstEmpty : 0;
-        // Keyboard letters can be standard letters or a filtered list
         _keyboardLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         _disabledKeyboardLetters = {};
-        _disabledPoolIndices = {};
         _wrongSlotIndices = {};
       });
     }
@@ -81,28 +74,24 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       final correctLetter = word.word[_activeSlotIndex].toUpperCase();
       if (letter.toUpperCase() == correctLetter) {
         ref.read(gameStateProvider.notifier).fillLetter(_activeSlotIndex, letter);
-        
-        // Correct letter entered: enable all keyboard letters again
+
         setState(() {
           _disabledKeyboardLetters.clear();
         });
 
-        // Auto move to the next empty slot
         final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
         int nextEmpty = updatedLetters.indexOf('', _activeSlotIndex + 1);
         if (nextEmpty == -1) {
-          nextEmpty = updatedLetters.indexOf(''); // wrap around to beginning
+          nextEmpty = updatedLetters.indexOf('');
         }
-        
+
         if (nextEmpty != -1) {
           setState(() {
             _activeSlotIndex = nextEmpty;
           });
         }
       } else {
-        // Wrong letter!
         final wrongIndex = _activeSlotIndex;
-        // Temporarily fill slot in the UI so they see the letter they pressed
         ref.read(gameStateProvider.notifier).fillLetter(wrongIndex, letter);
         setState(() {
           _wrongSlotIndices.add(wrongIndex);
@@ -111,10 +100,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         ref.read(audioServiceProvider).playWrongSound();
         ref.read(gameStateProvider.notifier).triggerWrongAnswerShake();
 
-        // Let them see it is incorrect (red & shake)
         await Future.delayed(const Duration(milliseconds: 600));
 
-        // Reset the slot back to empty/placeholder and disable the keyboard key
         if (mounted) {
           ref.read(gameStateProvider.notifier).clearLetter(wrongIndex);
           setState(() {
@@ -136,17 +123,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       final correctLetter = word.word[firstEmptyIdx].toUpperCase();
       if (letter.toUpperCase() == correctLetter) {
         ref.read(gameStateProvider.notifier).fillLetter(firstEmptyIdx, letter);
-        
+
         setState(() {
           _unscrambleSelectionOrder.add(poolIndex.toString());
-          
-          // Move active highlight to the next empty block
+
           final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
           final nextEmpty = updatedLetters.indexOf('');
           _activeSlotIndex = nextEmpty != -1 ? nextEmpty : 0;
         });
       } else {
-        // Wrong letter!
         final wrongIndex = firstEmptyIdx;
         ref.read(gameStateProvider.notifier).fillLetter(wrongIndex, letter);
         setState(() {
@@ -174,7 +159,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     if (word == null || gameState.isLevelComplete) return;
 
     if (word.gameMode == GameMode.missingLetters) {
-      // If it is prefilled, we don't clear it (keep it easy for kids)
       if (word.word[slotIndex] != gameState.userAnswerLetters[slotIndex]) {
         ref.read(gameStateProvider.notifier).clearLetter(slotIndex);
         setState(() {
@@ -183,13 +167,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         });
       }
     } else if (word.gameMode == GameMode.unscramble) {
-      // For unscramble, we clear slots from right to left or specific index
-      // If we clear, we must remove it from selection order and put it back in pool
       final letter = gameState.userAnswerLetters[slotIndex];
       if (letter.isNotEmpty) {
         ref.read(gameStateProvider.notifier).clearLetter(slotIndex);
-        // Find which pool item filled this slot
-        // To keep it simple, just clear all slots and restart or pop the last one
         if (_unscrambleSelectionOrder.isNotEmpty) {
           _unscrambleSelectionOrder.removeLast();
         }
@@ -210,8 +190,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // Watch active game states
+    final isDark = theme.brightness == Brightness.dark;
+
     final gameState = ref.watch(gameStateProvider);
     final word = gameState.activeWord;
 
@@ -220,81 +200,141 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     }
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
+          // Ambient soft background bubbles
+          Positioned(
+            top: -40,
+            left: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark
+                    ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                    : AppTheme.pastelLavender,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 120,
+            right: -60,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark
+                    ? AppTheme.sunnyYellow.withValues(alpha: 0.08)
+                    : AppTheme.pastelSky,
+              ),
+            ),
+          ),
+
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
               child: Column(
                 children: [
-                  // HEADER ACTION BAR
-                  _buildHeader(theme, gameState),
-                  
+                  // 1. TOP HEADER ACTION BAR
+                  _buildHeader(theme, gameState, isDark),
+
                   const Spacer(flex: 1),
 
-                  // PUZZLE WORD TITLE / CATEGORY
+                  // 2. CATEGORY PILL BADGE
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'CATEGORY: ${word.category.toUpperCase()}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                   // DIFFICULTY LABEL
-                  Text(
-                    'Difficulty: ${word.difficultyName}',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // GAME MODE INSTRUCTION HINT
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(16),
+                      color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: theme.colorScheme.secondary.withOpacity(0.15),
-                        width: 1,
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          word.gameMode == GameMode.missingLetters
-                              ? Icons.edit_note_rounded
-                              : word.gameMode == GameMode.unscramble
-                                  ? Icons.shuffle_rounded
-                                  : Icons.check_circle_outline_rounded,
-                          color: theme.colorScheme.secondary,
-                          size: 18,
+                        const Icon(
+                          Icons.category_rounded,
+                          color: AppTheme.primaryColor,
+                          size: 16,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
+                        Text(
+                          word.category.toUpperCase(),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 3. INSTRUCTION CARD WITH MODERN ROUNDED CORNERS
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppTheme.darkSurfaceColor.withValues(alpha: 0.8)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.08),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.coralPink.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            word.gameMode == GameMode.missingLetters
+                                ? Icons.edit_note_rounded
+                                : word.gameMode == GameMode.unscramble
+                                    ? Icons.shuffle_rounded
+                                    : Icons.touch_app_rounded,
+                            color: AppTheme.coralPink,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         Flexible(
                           child: Text(
                             word.gameMode == GameMode.missingLetters
-                                ? 'Fill in the empty blocks (_) to complete the spelling!'
+                                ? 'Tap the missing letters below to finish spelling!'
                                 : word.gameMode == GameMode.unscramble
-                                    ? 'Tap the letters below in the correct order to unscramble the word!'
-                                    : 'Tap the correct spelling of the word!',
+                                    ? 'Pop the letter bubbles in the right order!'
+                                    : 'Select the correctly spelled word!',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.85),
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
                             textAlign: TextAlign.center,
@@ -306,28 +346,28 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
                   const Spacer(flex: 2),
 
-                  // PUZZLE BLOCKS AREA
-                  _buildPuzzleArea(theme, gameState, word)
+                  // 4. PUZZLE WORD TILES
+                  _buildPuzzleArea(theme, gameState, word, isDark)
                       .animate(target: gameState.isWrongAnswerShake ? 1 : 0)
-                      .shake(duration: 300.ms, curve: Curves.easeInOut),
+                      .shake(duration: 350.ms, curve: Curves.easeInOut),
 
                   const Spacer(flex: 2),
 
-                  // KEYBOARD / USER CHOICES AREA
-                  _buildInputPanel(theme, gameState, word),
+                  // 5. INPUT PANEL (KEYBOARD / OPTIONS / SCRAMBLE BUBBLES)
+                  _buildInputPanel(theme, gameState, word, isDark),
 
                   const Spacer(flex: 1),
-                  
-                  // HINT TOOLBAR
-                  _buildHintBar(theme, gameState),
-                  
-                  const SizedBox(height: 12),
+
+                  // 6. HINTS TOOLBAR
+                  _buildHintBar(theme, gameState, isDark),
+
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
           ),
 
-          // CONFETTI CELEBRATION OVERLAY
+          // 7. CELEBRATION OVERLAY
           if (gameState.isLevelComplete)
             GameCompleteOverlay(
               correctWord: word.word,
@@ -349,39 +389,83 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  // --- Header Area ---
-  Widget _buildHeader(ThemeData theme, GameSessionState gameState) {
+  // --- Top Navigation Header ---
+  Widget _buildHeader(ThemeData theme, GameSessionState gameState, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
-          icon: const Icon(Icons.pause_circle_filled_rounded, size: 28),
-          color: theme.colorScheme.primary,
-          onPressed: () => _showPauseDialog(theme),
-        ),
-        Text(
-          'LEVEL ${gameState.currentLevel}',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 20,
+        // Pause Button with rounded 3D container
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.pause_rounded, size: 24),
+            color: AppTheme.primaryColor,
+            onPressed: () => _showPauseDialog(theme, isDark),
           ),
         ),
+
+        // Level Title
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.secondary.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(16),
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Text(
+            'LEVEL ${gameState.currentLevel}',
+            style: theme.textTheme.displayMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+
+        // Stars Counter Pill
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppTheme.sunnyYellow.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.sunnyYellow.withValues(alpha: 0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              const Icon(Icons.star_rounded, color: Color(0xfff59e0b), size: 18),
+              const Icon(Icons.star_rounded, color: AppTheme.sunnyYellow, size: 20),
               const SizedBox(width: 4),
               Text(
                 '${gameState.stars}',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.secondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  color: const Color(0xffb45309),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -391,25 +475,40 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  // --- Puzzle Area (Letters display) ---
-  Widget _buildPuzzleArea(ThemeData theme, GameSessionState gameState, WordModel word) {
+  // --- Puzzle Area (Spell Pop Letter Tiles) ---
+  Widget _buildPuzzleArea(ThemeData theme, GameSessionState gameState, WordModel word, bool isDark) {
     if (word.gameMode == GameMode.chooseSpelling) {
-      return Text(
-        'Which spelling is correct?',
-        style: theme.textTheme.displayMedium?.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Text(
+          'Which spelling is correct?',
+          style: theme.textTheme.displayMedium?.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+          textAlign: TextAlign.center,
+        ),
       );
     }
 
     final double screenWidth = MediaQuery.of(context).size.width;
     final int wordLength = word.word.length;
-    // Calculate tile size responsive to screen width to keep them in a single row
-    final double spacing = wordLength > 8 ? 4.0 : 8.0;
-    final double paddingHorizontal = 40.0; // 20.0 padding on each side of the screen
+    final double spacing = wordLength > 8 ? 6.0 : 10.0;
+    final double paddingHorizontal = 40.0;
     final double availableWidth = screenWidth - paddingHorizontal - ((wordLength - 1) * spacing);
-    final double calculatedSize = (availableWidth / wordLength).clamp(32.0, 48.0);
+    final double calculatedSize = (availableWidth / wordLength).clamp(36.0, 56.0);
 
-    // List of slot boxes
     return Wrap(
       spacing: spacing,
       runSpacing: spacing,
@@ -417,104 +516,124 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       children: List.generate(wordLength, (index) {
         final letter = gameState.userAnswerLetters[index];
         final bool isEmpty = letter.isEmpty;
-        final bool isPrefilled = word.gameMode == GameMode.missingLetters && 
-            word.word[index] == letter && 
+        final bool isPrefilled = word.gameMode == GameMode.missingLetters &&
+            word.word[index] == letter &&
             !isEmpty;
-        final bool isActive = (word.gameMode == GameMode.missingLetters || word.gameMode == GameMode.unscramble) && index == _activeSlotIndex;
+        final bool isActive = (word.gameMode == GameMode.missingLetters ||
+                word.gameMode == GameMode.unscramble) &&
+            index == _activeSlotIndex;
         final bool isWrong = _wrongSlotIndices.contains(index);
 
-        Color borderCol = theme.dividerColor.withOpacity(0.12);
-        Color bgCol = theme.cardColor;
+        Color borderCol = isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : const Color(0xffe2e8f0);
+        Color bgCol = isDark ? AppTheme.darkSurfaceColor : Colors.white;
+        Color textCol = theme.colorScheme.onSurface;
 
         if (isWrong) {
-          borderCol = theme.colorScheme.error;
-          bgCol = theme.colorScheme.error.withOpacity(0.1);
+          borderCol = AppTheme.errorColor;
+          bgCol = AppTheme.errorColor.withValues(alpha: 0.15);
+          textCol = AppTheme.errorColor;
         } else if (isActive) {
-          borderCol = theme.colorScheme.primary;
-          bgCol = theme.colorScheme.primary.withOpacity(0.08);
+          borderCol = AppTheme.primaryColor;
+          bgCol = AppTheme.primaryColor.withValues(alpha: 0.1);
+          textCol = AppTheme.primaryColor;
         } else if (isPrefilled) {
-          bgCol = theme.dividerColor.withOpacity(0.08);
-        } else if (isEmpty) {
-          borderCol = theme.colorScheme.primary.withOpacity(0.35);
-          bgCol = theme.colorScheme.primary.withOpacity(0.02);
+          bgCol = isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xfff1f5f9);
+          textCol = theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6) ?? Colors.grey;
+        } else if (!isEmpty) {
+          bgCol = isDark ? AppTheme.darkSurfaceColor : Colors.white;
+          borderCol = AppTheme.mintGreen;
+          textCol = AppTheme.mintGreen;
         }
 
         return GestureDetector(
           onTap: () => _onSlotClear(index),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
             width: calculatedSize,
-            height: calculatedSize * 1.12,
+            height: calculatedSize * 1.22,
             decoration: BoxDecoration(
               color: bgCol,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: borderCol, 
-                width: isWrong ? 2.5 : (isActive ? 2.5 : (isEmpty ? 1.5 : 2.0)),
+                color: borderCol,
+                width: isWrong ? 2.5 : (isActive ? 2.5 : 2.0),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: isWrong
+                      ? AppTheme.errorColor.withValues(alpha: 0.25)
+                      : (isActive
+                          ? AppTheme.primaryColor.withValues(alpha: 0.2)
+                          : Colors.black.withValues(alpha: isDark ? 0.2 : 0.05)),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             alignment: Alignment.center,
             child: Text(
               isEmpty ? '' : letter,
               style: theme.textTheme.displayMedium?.copyWith(
-                fontSize: calculatedSize * 0.45,
-                fontWeight: FontWeight.bold,
-                color: isWrong
-                    ? theme.colorScheme.error
-                    : (isEmpty
-                        ? theme.colorScheme.primary.withOpacity(0.4)
-                        : (isPrefilled 
-                            ? theme.textTheme.bodyMedium?.color?.withOpacity(0.5)
-                            : theme.colorScheme.onSurface)),
+                fontSize: calculatedSize * 0.52,
+                fontWeight: FontWeight.w800,
+                color: textCol,
               ),
             ),
-          ).animate()
-           .scale(duration: 150.ms, curve: Curves.easeOutBack),
+          ).animate().scale(duration: 200.ms, curve: Curves.easeOutBack),
         );
       }),
     );
   }
 
-  // --- Input Panel (Keyboard, Choices, Scrambled tiles) ---
-  Widget _buildInputPanel(ThemeData theme, GameSessionState gameState, WordModel word) {
+  // --- Input Panel ---
+  Widget _buildInputPanel(ThemeData theme, GameSessionState gameState, WordModel word, bool isDark) {
     if (word.gameMode == GameMode.chooseSpelling) {
       final options = word.options ?? [word.word, '${word.word}e', 'Aple'];
       return Column(
         children: options.map((opt) {
           final isSelected = gameState.selectedMultipleChoiceOption == opt;
           final isCorrect = opt.toUpperCase() == word.word.toUpperCase();
-          
-          Color cardBg = theme.cardColor;
-          Color borderCol = theme.dividerColor.withOpacity(0.1);
+
+          Color cardBg = isDark ? AppTheme.darkSurfaceColor : Colors.white;
+          Color borderCol = isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : const Color(0xffe2e8f0);
           Color textCol = theme.colorScheme.onSurface;
 
           if (isSelected) {
             if (isCorrect) {
-              cardBg = theme.colorScheme.success.withOpacity(0.15);
-              borderCol = theme.colorScheme.success;
-              textCol = theme.colorScheme.success;
+              cardBg = AppTheme.mintGreen.withValues(alpha: 0.2);
+              borderCol = AppTheme.mintGreen;
+              textCol = AppTheme.mintGreen;
             } else {
-              cardBg = theme.colorScheme.error.withOpacity(0.15);
-              borderCol = theme.colorScheme.error;
-              textCol = theme.colorScheme.error;
+              cardBg = AppTheme.errorColor.withValues(alpha: 0.2);
+              borderCol = AppTheme.errorColor;
+              textCol = AppTheme.errorColor;
             }
           }
 
           return Container(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 14),
             width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 70),
             child: PopButton(
               backgroundColor: cardBg,
+              depth: 4,
+              shadowColor: borderCol.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: borderCol, width: 2),
-              boxShadow: const [],
               onTap: () => ref.read(gameStateProvider.notifier).chooseOption(opt),
               child: Text(
                 opt,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: textCol,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   fontSize: 18,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           );
@@ -523,47 +642,56 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     }
 
     if (word.gameMode == GameMode.unscramble) {
-      // Scrambled letters tiles block
+      // 3D Letter Bubbles
       return Column(
         children: [
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 12,
+            runSpacing: 12,
             alignment: WrapAlignment.center,
             children: List.generate(_unscramblePool.length, (index) {
               final letter = _unscramblePool[index];
               final bool isUsed = _unscrambleSelectionOrder.contains(index.toString());
-              final bool isDisabled = _disabledPoolIndices.contains(index);
 
               return Visibility(
                 visible: !isUsed,
                 child: PopButton(
-                  backgroundColor: theme.colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  backgroundColor: AppTheme.primaryColor,
+                  depth: 4.5,
+                  shadowColor: const Color(0xff4338ca),
+                  borderRadius: BorderRadius.circular(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   onTap: () => _onUnscrambleTileTap(index, letter),
                   child: Text(
                     letter,
                     style: theme.textTheme.displayMedium?.copyWith(
-                      fontSize: 20,
+                      fontSize: 24,
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               );
             }),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          // Reset button
           TextButton.icon(
             onPressed: _resetUnscramble,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, size: 20),
             label: const Text('Reset Letters'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+              textStyle: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       );
     }
 
-    // Default: Missing Letters Keyboard
+    // Default missing letters custom keyboard
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -571,29 +699,40 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       children: _keyboardLetters.map((letter) {
         final bool isDisabled = _disabledKeyboardLetters.contains(letter.toUpperCase());
         return SizedBox(
-          width: 32,
-          height: 44,
+          width: 33,
+          height: 48,
           child: PopButton(
             alignment: Alignment.center,
-            borderRadius: BorderRadius.circular(8),
-            backgroundColor: isDisabled ? theme.disabledColor.withOpacity(0.12) : theme.cardColor,
+            depth: isDisabled ? 0 : 3,
+            borderRadius: BorderRadius.circular(12),
+            backgroundColor: isDisabled
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xfff1f5f9))
+                : (isDark ? AppTheme.darkSurfaceColor : Colors.white),
             padding: EdgeInsets.zero,
             border: Border.all(
-              color: isDisabled 
-                  ? theme.disabledColor.withOpacity(0.15) 
-                  : theme.dividerColor.withOpacity(0.08), 
-              width: 1,
+              color: isDisabled
+                  ? Colors.transparent
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : const Color(0xffe2e8f0)),
+              width: 1.2,
             ),
-            boxShadow: const [],
+            shadowColor: isDark
+                ? Colors.black.withValues(alpha: 0.5)
+                : const Color(0xffcbd5e1),
             onTap: isDisabled ? null : () => _onLetterTap(letter),
             child: Text(
               letter,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: isDisabled 
-                    ? theme.disabledColor.withOpacity(0.4) 
+                color: isDisabled
+                    ? (isDark
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.25))
                     : theme.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
               ),
             ),
           ),
@@ -602,32 +741,50 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  // --- Hint System Bar ---
-  Widget _buildHintBar(ThemeData theme, GameSessionState gameState) {
+  // --- Hints Toolbar ---
+  Widget _buildHintBar(ThemeData theme, GameSessionState gameState, bool isDark) {
     if (gameState.isLevelComplete) return const SizedBox.shrink();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // Reveal Letter
-        Flexible(
-          child: _buildHintButton(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Reveal Letter
+          _buildHintButton(
             theme: theme,
-            icon: Icons.lightbulb_outline_rounded,
+            icon: Icons.lightbulb_rounded,
+            accentColor: AppTheme.sunnyYellow,
             label: 'Reveal (25⭐)',
             onPressed: () {
               final success = ref.read(gameStateProvider.notifier).useHintRevealLetter();
               if (!success) _showNoStarsMsg(theme);
             },
           ),
-        ),
-        
-        // Remove Wrongs (Only active if keyboard letters are custom or missingLetters/unscramble)
-        if (gameState.activeWord?.gameMode != GameMode.chooseSpelling)
-          Flexible(
-            child: _buildHintButton(
+
+          Container(
+            height: 24,
+            width: 1.2,
+            color: theme.dividerColor.withValues(alpha: 0.12),
+          ),
+
+          // Zap Letter
+          if (gameState.activeWord?.gameMode != GameMode.chooseSpelling) ...[
+            _buildHintButton(
               theme: theme,
-              icon: Icons.remove_circle_outline_rounded,
+              icon: Icons.bolt_rounded,
+              accentColor: AppTheme.coralPink,
               label: 'Zap (15⭐)',
               onPressed: () {
                 final success = ref.read(gameStateProvider.notifier).useHintRemoveWrongLetter(
@@ -641,43 +798,55 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 if (!success) _showNoStarsMsg(theme);
               },
             ),
-          ),
-          
-        // Skip Level
-        Flexible(
-          child: _buildHintButton(
+            Container(
+              height: 24,
+              width: 1.2,
+              color: theme.dividerColor.withValues(alpha: 0.12),
+            ),
+          ],
+
+          // Skip Level
+          _buildHintButton(
             theme: theme,
             icon: Icons.skip_next_rounded,
+            accentColor: AppTheme.tealAccent,
             label: 'Skip (40⭐)',
             onPressed: () {
               final success = ref.read(gameStateProvider.notifier).useHintSkipWord();
               if (!success) _showNoStarsMsg(theme);
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildHintButton({
     required ThemeData theme,
     required IconData icon,
+    required Color accentColor,
     required String label,
     required VoidCallback onPressed,
   }) {
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(label),
-      ),
-      style: TextButton.styleFrom(
-        foregroundColor: theme.colorScheme.secondary,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        textStyle: theme.textTheme.bodyMedium?.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: accentColor, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -697,7 +866,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   ref.read(gameStateProvider.notifier).grantRewardedHint();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('Awarded +30 Stars!'),
+                      content: const Text('Awarded +30 Stars! 🎉'),
                       backgroundColor: theme.colorScheme.success,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -705,53 +874,141 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 }, () {});
               },
               child: Text(
-                'Watch Ad (+30⭐)',
-                style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold),
+                'Watch Video (+30⭐)',
+                style: TextStyle(
+                  color: AppTheme.sunnyYellow,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
-        backgroundColor: theme.colorScheme.error,
+        backgroundColor: AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
-  // --- Pause Menu Dialog ---
-  void _showPauseDialog(ThemeData theme) {
+  // --- 2025 Modern Rounded Pause Menu ---
+  void _showPauseDialog(ThemeData theme, bool isDark) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Game Paused', textAlign: TextAlign.center),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.play_arrow_rounded),
-              title: const Text('Resume Play'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.refresh_rounded),
-              title: const Text('Restart Level'),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(gameStateProvider.notifier).retryLevel();
-                _initializeKeyboardAndPools();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.home_rounded),
-              title: const Text('Exit to Home'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/home');
-              },
-            ),
-          ],
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 360),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon Header
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.primaryColor, AppTheme.primaryGradientEnd],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.pause_rounded, color: Colors.white, size: 36),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Game Paused',
+                style: theme.textTheme.displayMedium?.copyWith(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Take a breath or try another round!',
+                style: theme.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Resume button
+              PopButton(
+                backgroundColor: AppTheme.mintGreen,
+                depth: 4,
+                shadowColor: const Color(0xff059669),
+                onTap: () => Navigator.pop(context),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                    SizedBox(width: 8),
+                    Text('RESUME', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Restart button
+              PopButton(
+                backgroundColor: AppTheme.sunnyYellow,
+                depth: 4,
+                shadowColor: const Color(0xffd97706),
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(gameStateProvider.notifier).retryLevel();
+                  _initializeKeyboardAndPools();
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.replay_rounded, color: Color(0xff78350f), size: 22),
+                    SizedBox(width: 8),
+                    Text(
+                      'RESTART LEVEL',
+                      style: TextStyle(color: Color(0xff78350f), fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Exit to Home
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go('/home');
+                },
+                child: Text(
+                  'Exit to Main Menu',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

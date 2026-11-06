@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../game/providers/game_state.dart';
-import '../../shared/widgets/glass_card.dart';
+import '../../app/theme/theme.dart';
 
 class AchievementItem {
   final String title;
@@ -32,8 +32,7 @@ class AchievementsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
-    // Watch actual stats from gameState to compute dynamic achievement progress
+
     final gameState = ref.watch(gameStateProvider);
     final levelsCompleted = gameState.completedLevels.length;
     final userStars = gameState.stars;
@@ -44,7 +43,7 @@ class AchievementsScreen extends ConsumerWidget {
         title: 'First Win',
         description: 'Solve your first spelling word correctly.',
         icon: Icons.workspace_premium_rounded,
-        baseColor: Colors.amber,
+        baseColor: AppTheme.sunnyYellow,
         progress: levelsCompleted >= 1 ? 1 : 0,
         maxProgress: 1,
       ),
@@ -52,7 +51,7 @@ class AchievementsScreen extends ConsumerWidget {
         title: 'Spelling Starter',
         description: 'Complete 10 spelling words.',
         icon: Icons.military_tech_rounded,
-        baseColor: Colors.blue,
+        baseColor: AppTheme.tealAccent,
         progress: levelsCompleted.clamp(0, 10),
         maxProgress: 10,
       ),
@@ -60,7 +59,7 @@ class AchievementsScreen extends ConsumerWidget {
         title: 'Word Master',
         description: 'Solve 100 spelling words.',
         icon: Icons.emoji_events_rounded,
-        baseColor: Colors.purple,
+        baseColor: AppTheme.primaryGradientEnd,
         progress: levelsCompleted.clamp(0, 100),
         maxProgress: 100,
       ),
@@ -68,7 +67,7 @@ class AchievementsScreen extends ConsumerWidget {
         title: 'Star Collector',
         description: 'Accumulate 500 stars in total.',
         icon: Icons.star_rounded,
-        baseColor: const Color(0xfff59e0b),
+        baseColor: AppTheme.sunnyYellow,
         progress: userStars.clamp(0, 500),
         maxProgress: 500,
       ),
@@ -76,45 +75,65 @@ class AchievementsScreen extends ConsumerWidget {
         title: '7-Day Streak',
         description: 'Log in and solve a puzzle 7 days in a row.',
         icon: Icons.local_fire_department_rounded,
-        baseColor: Colors.orange,
+        baseColor: AppTheme.coralPink,
         progress: currentStreak.clamp(0, 7),
         maxProgress: 7,
       ),
       AchievementItem(
         title: 'Perfect Score',
         description: 'Solve a word without hints.',
-        icon: Icons.flourescent_rounded,
-        baseColor: Colors.green,
-        progress: levelsCompleted >= 2 ? 1 : 0, // Mocked trigger
+        icon: Icons.auto_awesome_rounded,
+        baseColor: AppTheme.mintGreen,
+        progress: levelsCompleted >= 2 ? 1 : 0,
         maxProgress: 1,
       ),
       AchievementItem(
         title: 'Fast Solver',
         description: 'Complete a level in less than 5 seconds.',
         icon: Icons.bolt_rounded,
-        baseColor: Colors.cyan,
-        progress: levelsCompleted >= 3 ? 1 : 0, // Mocked trigger
+        baseColor: const Color(0xff38bdf8),
+        progress: levelsCompleted >= 3 ? 1 : 0,
         maxProgress: 1,
       ),
       AchievementItem(
         title: 'Category Champion',
         description: 'Unlock and fully master all base word categories.',
-        icon: Icons.auto_awesome_rounded,
-        baseColor: Colors.pink,
+        icon: Icons.military_tech_rounded,
+        baseColor: const Color(0xffec4899),
         progress: levelsCompleted >= 15 ? 1 : 0,
         maxProgress: 1,
       ),
     ];
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Achievements',
-          style: theme.textTheme.displayMedium?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+          style: theme.textTheme.displayMedium?.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+              onPressed: () => context.pop(),
+            ),
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -123,30 +142,59 @@ class AchievementsScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Stats summary header card
+            // Stats summary card
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
-              child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+              child: Container(
                 padding: const EdgeInsets.all(20),
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.05),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatCol(theme, '$levelsCompleted', 'Solved Words'),
-                    Container(height: 40, width: 1.5, color: theme.dividerColor.withOpacity(0.15)),
-                    _buildStatCol(theme, '${achievements.where((e) => e.isUnlocked).length}/${achievements.length}', 'Badges Unlocked'),
-                    Container(height: 40, width: 1.5, color: theme.dividerColor.withOpacity(0.15)),
-                    _buildStatCol(theme, '$userStars', 'Total Stars'),
+                    _buildStatCol(theme, '$levelsCompleted', 'Solved Words', AppTheme.primaryColor),
+                    Container(
+                      height: 40,
+                      width: 1.2,
+                      color: theme.dividerColor.withValues(alpha: 0.12),
+                    ),
+                    _buildStatCol(
+                      theme,
+                      '${achievements.where((e) => e.isUnlocked).length}/${achievements.length}',
+                      'Badges',
+                      AppTheme.coralPink,
+                    ),
+                    Container(
+                      height: 40,
+                      width: 1.2,
+                      color: theme.dividerColor.withValues(alpha: 0.12),
+                    ),
+                    _buildStatCol(theme, '$userStars', 'Total Stars', AppTheme.sunnyYellow),
                   ],
                 ),
               ),
             ),
-            
+
+            const SizedBox(height: 8),
+
             // Achievements list view
             Expanded(
               child: ListView.builder(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 itemCount: achievements.length,
                 itemBuilder: (context, index) {
                   final item = achievements[index];
@@ -163,7 +211,7 @@ class AchievementsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatCol(ThemeData theme, String value, String label) {
+  Widget _buildStatCol(ThemeData theme, String value, String label, Color accentColor) {
     return Column(
       children: [
         Text(
@@ -171,43 +219,48 @@ class AchievementsScreen extends ConsumerWidget {
           style: theme.textTheme.displayMedium?.copyWith(
             fontSize: 24,
             fontWeight: FontWeight.w900,
-            color: theme.colorScheme.primary,
+            color: accentColor,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
-          style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildAchievementCard(BuildContext context, AchievementItem item, ThemeData theme, bool isDark) {
+  Widget _buildAchievementCard(
+      BuildContext context, AchievementItem item, ThemeData theme, bool isDark) {
     final progressVal = item.progress / item.maxProgress;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xff1e293b) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: item.isUnlocked 
-              ? item.baseColor.withOpacity(0.3) 
-              : theme.dividerColor.withOpacity(0.06),
+          color: item.isUnlocked
+              ? item.baseColor.withValues(alpha: 0.3)
+              : theme.dividerColor.withValues(alpha: 0.08),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
-            blurRadius: 8,
+            color: item.isUnlocked
+                ? item.baseColor.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+            blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
-      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18.0),
         child: Row(
           children: [
             // Shining badge element
@@ -216,7 +269,9 @@ class AchievementsScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 gradient: item.isUnlocked
                     ? LinearGradient(
-                        colors: [item.baseColor, item.baseColor.withOpacity(0.6)],
+                        colors: [item.baseColor, item.baseColor.withValues(alpha: 0.7)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       )
                     : LinearGradient(
                         colors: [Colors.grey.shade400, Colors.grey.shade500],
@@ -225,8 +280,8 @@ class AchievementsScreen extends ConsumerWidget {
                 boxShadow: item.isUnlocked
                     ? [
                         BoxShadow(
-                          color: item.baseColor.withOpacity(0.3),
-                          blurRadius: 10,
+                          color: item.baseColor.withValues(alpha: 0.35),
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         )
                       ]
@@ -238,43 +293,69 @@ class AchievementsScreen extends ConsumerWidget {
                 size: 28,
               ),
             ),
-            
+
             const SizedBox(width: 16),
-            
+
             // Text details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: item.isUnlocked ? theme.colorScheme.onSurface : theme.disabledColor,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        item.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: item.isUnlocked
+                              ? theme.colorScheme.onSurface
+                              : theme.disabledColor,
+                        ),
+                      ),
+                      if (item.isUnlocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: item.baseColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'UNLOCKED',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: item.baseColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.description,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 10),
-                  
-                  // Progress display
+
+                  // Progress bar
                   Row(
                     children: [
                       Expanded(
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
                           child: LinearProgressIndicator(
                             value: progressVal,
                             backgroundColor: item.isUnlocked
-                                ? item.baseColor.withOpacity(0.1)
-                                : theme.dividerColor.withOpacity(0.08),
+                                ? item.baseColor.withValues(alpha: 0.12)
+                                : theme.dividerColor.withValues(alpha: 0.08),
                             color: item.isUnlocked ? item.baseColor : theme.disabledColor,
-                            minHeight: 6,
+                            minHeight: 7,
                           ),
                         ),
                       ),
@@ -283,7 +364,7 @@ class AchievementsScreen extends ConsumerWidget {
                         '${item.progress}/${item.maxProgress}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
