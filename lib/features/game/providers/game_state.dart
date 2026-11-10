@@ -173,6 +173,43 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     );
   }
 
+  void setupCategoryLevel(String category, {int wordIndex = 0}) {
+    final db = ref.read(databaseServiceProvider);
+    final categoryWords = db.getWordsByCategory(category);
+    if (categoryWords.isEmpty) {
+      setupLevel(state.currentLevel);
+      return;
+    }
+
+    final safeIndex = wordIndex % categoryWords.length;
+    final word = categoryWords[safeIndex];
+
+    List<String> answerLetters = [];
+    if (word.gameMode == GameMode.missingLetters) {
+      answerLetters = List.filled(word.word.length, '');
+      final rand = Random();
+      final indicesToReveal = <int>{};
+      final countToReveal = (word.word.length / 2).ceil();
+      while (indicesToReveal.length < countToReveal) {
+        indicesToReveal.add(rand.nextInt(word.word.length));
+      }
+      for (var idx in indicesToReveal) {
+        answerLetters[idx] = word.word[idx];
+      }
+    } else {
+      answerLetters = List.filled(word.word.length, '');
+    }
+
+    state = state.copyWith(
+      currentLevel: safeIndex + 1,
+      activeWord: word,
+      userAnswerLetters: answerLetters,
+      selectedMultipleChoiceOption: null,
+      isLevelComplete: false,
+      isWrongAnswerShake: false,
+    );
+  }
+
   void fillLetter(int slotIndex, String letter) {
     if (state.activeWord == null || state.isLevelComplete) return;
 
@@ -260,8 +297,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       ref.read(audioServiceProvider).playWrongSound();
 
       state = state.copyWith(isWrongAnswerShake: true);
-      Future.delayed(const Duration(milliseconds: 300), () {
-        state = state.copyWith(isWrongAnswerShake: false);
+      Future.delayed(const Duration(milliseconds: 500), () {
+        state = state.copyWith(
+          isWrongAnswerShake: false,
+          selectedMultipleChoiceOption: null,
+        );
       });
       state = state.copyWith(streak: 0);
     }

@@ -11,7 +11,8 @@ import '../../app/theme/theme.dart';
 import '../../core/providers/services_provider.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
-  const GameScreen({super.key});
+  final String? category;
+  const GameScreen({super.key, this.category});
 
   @override
   ConsumerState<GameScreen> createState() => _GameScreenState();
@@ -20,7 +21,7 @@ class GameScreen extends ConsumerStatefulWidget {
 class _GameScreenState extends ConsumerState<GameScreen> {
   int _activeSlotIndex = 0;
   List<String> _unscramblePool = [];
-  List<String> _unscrambleSelectionOrder = [];
+  Map<int, int> _slotToPoolMap = {};
   List<String> _keyboardLetters = [];
   Set<String> _disabledKeyboardLetters = {};
   Set<int> _wrongSlotIndices = {};
@@ -29,6 +30,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.category != null && widget.category!.isNotEmpty) {
+        ref.read(gameStateProvider.notifier).setupCategoryLevel(widget.category!);
+      }
       _initializeKeyboardAndPools();
     });
   }
@@ -49,7 +53,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
       setState(() {
         _unscramblePool = List<String>.from(letters);
-        _unscrambleSelectionOrder = [];
+        _slotToPoolMap = {};
         _activeSlotIndex = 0;
         _disabledKeyboardLetters = {};
         _wrongSlotIndices = {};
@@ -125,7 +129,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         ref.read(gameStateProvider.notifier).fillLetter(firstEmptyIdx, letter);
 
         setState(() {
-          _unscrambleSelectionOrder.add(poolIndex.toString());
+          _slotToPoolMap[firstEmptyIdx] = poolIndex;
 
           final updatedLetters = ref.read(gameStateProvider).userAnswerLetters;
           final nextEmpty = updatedLetters.indexOf('');
@@ -170,10 +174,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       final letter = gameState.userAnswerLetters[slotIndex];
       if (letter.isNotEmpty) {
         ref.read(gameStateProvider.notifier).clearLetter(slotIndex);
-        if (_unscrambleSelectionOrder.isNotEmpty) {
-          _unscrambleSelectionOrder.removeLast();
-        }
         setState(() {
+          _slotToPoolMap.remove(slotIndex);
           _activeSlotIndex = slotIndex;
         });
       }
@@ -651,7 +653,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             alignment: WrapAlignment.center,
             children: List.generate(_unscramblePool.length, (index) {
               final letter = _unscramblePool[index];
-              final bool isUsed = _unscrambleSelectionOrder.contains(index.toString());
+              final bool isUsed = _slotToPoolMap.containsValue(index);
 
               return Visibility(
                 visible: !isUsed,

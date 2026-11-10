@@ -12,6 +12,7 @@ class AudioService {
   Future<void> playClickSound() async {
     if (!_soundEffectsEnabled) return;
     try {
+      HapticFeedback.selectionClick();
       await SystemSound.play(SystemSoundType.click);
     } catch (_) {}
   }
@@ -19,7 +20,7 @@ class AudioService {
   Future<void> playCorrectSound() async {
     if (!_soundEffectsEnabled) return;
     try {
-      // SystemSound doesn't have a correct sound, but we can play click twice or log it
+      HapticFeedback.mediumImpact();
       await SystemSound.play(SystemSoundType.click);
     } catch (_) {}
   }
@@ -27,7 +28,7 @@ class AudioService {
   Future<void> playWrongSound() async {
     if (!_soundEffectsEnabled) return;
     try {
-      // SystemSound has alert/beep on some platforms
+      HapticFeedback.heavyImpact();
       await HapticFeedback.vibrate();
     } catch (_) {}
   }

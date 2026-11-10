@@ -247,7 +247,7 @@ class CategoriesScreen extends ConsumerWidget {
               );
             }
           : () {
-              context.push('/game');
+              context.push('/game', extra: item.name);
             },
       child: Padding(
         padding: const EdgeInsets.all(16.0),

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,273 @@ class DailyPuzzleScreen extends ConsumerStatefulWidget {
 class _DailyPuzzleScreenState extends ConsumerState<DailyPuzzleScreen> {
   bool _isClaimed = false;
   bool _isDoubled = false;
+
+  void _openDailyPuzzleChallenge(BuildContext context, ThemeData theme, bool isDark) {
+    // Generate today's mystery word based on current day of year
+    final now = DateTime.now();
+    final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
+    final db = ref.read(databaseServiceProvider);
+    final candidateWords = db.words.where((w) => w.word.length >= 4 && w.word.length <= 7).toList();
+    final targetWordModel = candidateWords.isNotEmpty
+        ? candidateWords[dayOfYear % candidateWords.length]
+        : (db.words.isNotEmpty ? db.words.first : null);
+
+    if (targetWordModel == null) return;
+
+    final targetWord = targetWordModel.word.toUpperCase();
+    final shuffledLetters = targetWord.split('')..shuffle(Random(dayOfYear));
+    // If accidentally same as target word, reverse it
+    if (shuffledLetters.join() == targetWord) {
+      shuffledLetters.reversed.toList();
+    }
+
+    final List<String> currentLetters = List.filled(targetWord.length, '');
+    final Map<int, int> slotPoolMap = {};
+    bool isShaking = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isSolved = currentLetters.join() == targetWord;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 25,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Pill handle
+                    Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.stars_rounded, color: AppTheme.sunnyYellow, size: 28),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Daily Mystery Challenge',
+                          style: theme.textTheme.displayMedium?.copyWith(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Unscramble the letters to reveal today\'s secret word!',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 13,
+                        color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Target Answer Slots
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: List.generate(targetWord.length, (slotIdx) {
+                        final char = currentLetters[slotIdx];
+                        final isEmpty = char.isEmpty;
+
+                        return GestureDetector(
+                          onTap: () {
+                            if (!isEmpty && !isSolved) {
+                              setModalState(() {
+                                currentLetters[slotIdx] = '';
+                                slotPoolMap.remove(slotIdx);
+                              });
+                              ref.read(audioServiceProvider).playClickSound();
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: min(52.0, (MediaQuery.of(context).size.width - 80) / targetWord.length),
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: isEmpty
+                                  ? (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xfff1f5f9))
+                                  : (isSolved
+                                      ? AppTheme.mintGreen.withValues(alpha: 0.2)
+                                      : (isDark ? AppTheme.primaryColor.withValues(alpha: 0.2) : Colors.white)),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSolved
+                                    ? AppTheme.mintGreen
+                                    : (isEmpty
+                                        ? theme.dividerColor.withValues(alpha: 0.2)
+                                        : AppTheme.primaryColor),
+                                width: 2,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              char,
+                              style: theme.textTheme.displayMedium?.copyWith(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: isSolved ? AppTheme.mintGreen : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 26),
+
+                    // Scrambled Letter Bubbles
+                    if (!isSolved)
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.center,
+                        children: List.generate(shuffledLetters.length, (poolIdx) {
+                          final letter = shuffledLetters[poolIdx];
+                          final isUsed = slotPoolMap.containsValue(poolIdx);
+
+                          return Visibility(
+                            visible: !isUsed,
+                            child: PopButton(
+                              backgroundColor: AppTheme.primaryColor,
+                              depth: 4,
+                              shadowColor: const Color(0xff4338ca),
+                              borderRadius: BorderRadius.circular(18),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              onTap: () {
+                                final firstEmpty = currentLetters.indexOf('');
+                                if (firstEmpty != -1) {
+                                  ref.read(audioServiceProvider).playClickSound();
+                                  setModalState(() {
+                                    currentLetters[firstEmpty] = letter;
+                                    slotPoolMap[firstEmpty] = poolIdx;
+                                  });
+
+                                  if (!currentLetters.contains('')) {
+                                    if (currentLetters.join() == targetWord) {
+                                      ref.read(audioServiceProvider).playCorrectSound();
+                                      setModalState(() {});
+                                    } else {
+                                      ref.read(audioServiceProvider).playWrongSound();
+                                      setModalState(() => isShaking = true);
+                                      Future.delayed(const Duration(milliseconds: 600), () {
+                                        if (context.mounted) {
+                                          setModalState(() {
+                                            isShaking = false;
+                                            currentLetters.fillRange(0, currentLetters.length, '');
+                                            slotPoolMap.clear();
+                                          });
+                                        }
+                                      });
+                                    }
+                                  }
+                                }
+                              },
+                              child: Text(
+                                letter,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      )
+                    else
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.mintGreen.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_circle_rounded, color: AppTheme.mintGreen, size: 44),
+                          ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Word Solved: $targetWord! 🎉',
+                            style: theme.textTheme.displayMedium?.copyWith(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.mintGreen,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          PopButton(
+                            backgroundColor: AppTheme.mintGreen,
+                            depth: 4.5,
+                            shadowColor: const Color(0xff059669),
+                            onTap: () {
+                              ref.read(gameStateProvider.notifier).completeDailyPuzzle();
+                              Navigator.pop(modalCtx);
+                              setState(() => _isClaimed = true);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Congratulations! +50 Stars added to your balance! ⭐'),
+                                  backgroundColor: AppTheme.mintGreen,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                              );
+                            },
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 22),
+                                SizedBox(width: 8),
+                                Text(
+                                  'CLAIM +50 STARS',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -390,20 +658,7 @@ class _DailyPuzzleScreenState extends ConsumerState<DailyPuzzleScreen> {
                             backgroundColor: AppTheme.primaryColor,
                             depth: 4.5,
                             shadowColor: const Color(0xff4338ca),
-                            onTap: () {
-                              ref.read(gameStateProvider.notifier).completeDailyPuzzle();
-                              setState(() => _isClaimed = true);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                      'Congratulations! +50 Stars added to your balance! ⭐'),
-                                  backgroundColor: AppTheme.mintGreen,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16)),
-                                ),
-                              );
-                            },
+                            onTap: () => _openDailyPuzzleChallenge(context, theme, isDark),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

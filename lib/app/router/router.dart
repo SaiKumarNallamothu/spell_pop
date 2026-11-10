@@ -53,10 +53,12 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/game',
-      pageBuilder: (context, state) => CustomTransitionPage(
-        key: state.pageKey,
-        child: const GameScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      pageBuilder: (context, state) {
+        final category = state.extra as String? ?? state.uri.queryParameters['category'];
+        return CustomTransitionPage(
+          key: state.pageKey,
+          child: GameScreen(category: category),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
           const end = Offset.zero;
           final curve = CurveTween(curve: Curves.easeOutCubic);
@@ -67,8 +69,9 @@ final GoRouter appRouter = GoRouter(
           );
         },
         transitionDuration: const Duration(milliseconds: 300),
-      ),
-    ),
+      );
+    },
+  ),
     GoRoute(
       path: '/time-attack',
       pageBuilder: (context, state) => CustomTransitionPage(
