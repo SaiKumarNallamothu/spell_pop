@@ -483,14 +483,43 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     _saveProgress();
   }
 
-  void grantRewardedHint() {
-    state = state.copyWith(stars: state.stars + 30);
+  void grantRewardedCoins([int amount = 50]) {
+    state = state.copyWith(stars: state.stars + amount);
     _saveProgress();
   }
 
+  void grantRewardedHint() {
+    grantRewardedCoins(50);
+  }
+
   void doubleDailyReward() {
-    state = state.copyWith(stars: state.stars + 50);
+    grantRewardedCoins(50);
+  }
+
+  void unlockNextLevel() {
+    final nextLvl = state.currentLevel + 1;
+    final db = ref.read(databaseServiceProvider);
+    db.addCompletedLevel(state.currentLevel);
+    
+    final updatedCompleted = List<int>.from(state.completedLevels);
+    if (!updatedCompleted.contains(state.currentLevel)) {
+      updatedCompleted.add(state.currentLevel);
+    }
+    
+    state = state.copyWith(
+      completedLevels: updatedCompleted,
+      isLevelComplete: false,
+    );
+    setupLevel(nextLvl);
     _saveProgress();
+  }
+
+  bool unlockNextLevelWithCoins([int cost = 100]) {
+    if (state.stars < cost) return false;
+    
+    state = state.copyWith(stars: state.stars - cost);
+    unlockNextLevel();
+    return true;
   }
 }
 

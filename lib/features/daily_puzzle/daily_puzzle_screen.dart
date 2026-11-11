@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../game/providers/game_state.dart';
 import '../../shared/widgets/pop_button.dart';
+import '../../shared/widgets/coin_balance_pill.dart';
 import '../../app/theme/theme.dart';
 import '../../core/providers/services_provider.dart';
 
@@ -325,6 +326,12 @@ class _DailyPuzzleScreenState extends ConsumerState<DailyPuzzleScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16.0),
+            child: Center(child: CoinBalancePill()),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

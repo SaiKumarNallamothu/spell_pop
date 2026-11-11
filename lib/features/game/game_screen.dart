@@ -7,6 +7,7 @@ import 'providers/game_state.dart';
 import '../../models/word_model.dart';
 import 'widgets/game_complete_overlay.dart';
 import '../../shared/widgets/pop_button.dart';
+import '../../shared/widgets/coin_balance_pill.dart';
 import '../../app/theme/theme.dart';
 import '../../core/providers/services_provider.dart';
 
@@ -440,39 +441,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           ),
         ),
 
-        // Stars Counter Pill
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppTheme.sunnyYellow.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.sunnyYellow.withValues(alpha: 0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.star_rounded, color: AppTheme.sunnyYellow, size: 20),
-              const SizedBox(width: 4),
-              Text(
-                '${gameState.stars}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: const Color(0xffb45309),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Coins Counter Pill (Tap to watch ad & get coins)
+        const CoinBalancePill(),
       ],
     );
   }
@@ -860,23 +830,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         content: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Need more stars?'),
+            const Text('Need more coins?'),
             TextButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ref.read(adServiceProvider).showRewardedAd(() {
-                  ref.read(gameStateProvider.notifier).grantRewardedHint();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Awarded +30 Stars! 🎉'),
-                      backgroundColor: theme.colorScheme.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }, () {});
+                showCoinStoreModal(
+                  context: context,
+                  ref: ref,
+                );
               },
-              child: Text(
-                'Watch Video (+30⭐)',
+              child: const Text(
+                'Get Coins (+50⭐)',
                 style: TextStyle(
                   color: AppTheme.sunnyYellow,
                   fontWeight: FontWeight.bold,

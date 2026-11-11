@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../game/providers/game_state.dart';
 import '../../shared/widgets/pop_button.dart';
+import '../../shared/widgets/coin_balance_pill.dart';
 import '../../app/theme/theme.dart';
 
 class CategoryItem {
@@ -126,6 +127,12 @@ class CategoriesScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16.0),
+            child: Center(child: CoinBalancePill()),
+          ),
+        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -203,7 +210,7 @@ class CategoriesScreen extends ConsumerWidget {
                       itemCount: categories.length,
                       itemBuilder: (context, index) {
                         final item = categories[index];
-                        return _buildCategoryCard(context, item, theme, isDark)
+                        return _buildCategoryCard(context, ref, item, theme, isDark)
                             .animate(delay: (index * 45).ms)
                             .scale(duration: 300.ms, curve: Curves.easeOutBack)
                             .fadeIn(duration: 200.ms);
@@ -220,7 +227,7 @@ class CategoriesScreen extends ConsumerWidget {
   }
 
   Widget _buildCategoryCard(
-      BuildContext context, CategoryItem item, ThemeData theme, bool isDark) {
+      BuildContext context, WidgetRef ref, CategoryItem item, ThemeData theme, bool isDark) {
     return PopButton(
       backgroundColor: isDark ? AppTheme.darkSurfaceColor : Colors.white,
       depth: item.isLocked ? 1.0 : 4.0,

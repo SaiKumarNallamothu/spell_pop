@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../game/providers/game_state.dart';
 import '../settings/providers/settings_provider.dart';
 import '../../shared/widgets/pop_button.dart';
+import '../../shared/widgets/coin_balance_pill.dart';
 import '../../app/theme/theme.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -117,48 +118,41 @@ class HomeScreen extends ConsumerWidget {
                         ],
                       ),
 
-                      // Pill badges: Stars counter & Theme button
+                      // Pill badges: Coins counter (Tap to watch ad & get coins) & Theme button
                       Row(
                         children: [
-                          // 3D Star Counter Pill
+                          // Interactive 3D Coin/Star Counter Pill with Ad / Unlock modal trigger
+                          const CoinBalancePill()
+                              .animate()
+                              .scale(duration: 400.ms, curve: Curves.elasticOut),
+
+                          const SizedBox(width: 8),
+
+                          // How to Play / Info Button
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppTheme.sunnyYellow.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
+                              borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.sunnyYellow.withValues(alpha: 0.15),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
+                                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.star_rounded,
-                                  color: AppTheme.sunnyYellow,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${gameState.stars}',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: const Color(0xffb45309),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
+                            child: IconButton(
+                              tooltip: 'How to Play & Modes',
+                              onPressed: () => _showHowToPlayDialog(context, theme, isDark),
+                              icon: const Icon(
+                                Icons.help_outline_rounded,
+                                color: AppTheme.primaryColor,
+                                size: 22,
+                              ),
                             ),
-                          ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+                          ),
 
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
 
                           // Theme Toggle Button
                           Container(
@@ -620,6 +614,269 @@ class HomeScreen extends ConsumerWidget {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHowToPlayDialog(BuildContext context, ThemeData theme, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 25,
+                offset: const Offset(0, -6),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pill Handle
+                Center(
+                  child: Container(
+                    width: 46,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.auto_stories_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'About Spell Pop',
+                          style: theme.textTheme.displayMedium?.copyWith(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 22),
+                      onPressed: () => Navigator.pop(modalCtx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Explore every game mode and how spelling puzzles work!',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 13,
+                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Mode Cards List
+                Expanded(
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      // 1. Classic Adventure
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.play_circle_fill_rounded,
+                        color: AppTheme.primaryColor,
+                        title: '1. Classic Adventure (Play Now)',
+                        description:
+                            'Progress through hundreds of curated spelling levels from Easy to Expert.\n• Earn stars on completion.\n• Unlock categories as you beat milestones.\n• Encounter 3 distinct puzzle types explained below!',
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 2. Unscramble Mode
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.shuffle_rounded,
+                        color: AppTheme.coralPink,
+                        title: 'Puzzle Type: Unscramble',
+                        description:
+                            'Floating 3D letter bubbles appear in mixed order.\n• Tap bubbles in the correct sequence to spell the word.\n• Tap any filled slot if you made a mistake to return that letter back to the pool.',
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 3. Missing Letters Mode
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.edit_note_rounded,
+                        color: AppTheme.tealAccent,
+                        title: 'Puzzle Type: Missing Letters',
+                        description:
+                            'Some letters in the word are already revealed.\n• Tap the active slot.\n• Use the custom on-screen keyboard (A-Z) to fill in the missing blanks.',
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 4. Choose Spelling Mode
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.check_circle_outline_rounded,
+                        color: AppTheme.mintGreen,
+                        title: 'Puzzle Type: Choose Spelling',
+                        description:
+                            'Multiple similar spellings will be shown on cards.\n• Spot and tap the one true correct spelling.\n• Tests vocabulary and tricky silent letters!',
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 5. Time Attack
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.timer_rounded,
+                        color: const Color(0xfff59e0b),
+                        title: '2. Time Attack Mode',
+                        description:
+                            'Race against a 60-second timer!\n• Correct Word: +1 Score & +2 Extra Seconds.\n• Mistake: -3 Seconds penalty.\n• Set new personal bests to earn +50 stars bonus!',
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 6. Daily Mystery Puzzle
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.calendar_today_rounded,
+                        color: const Color(0xff8b5cf6),
+                        title: '3. Daily Challenge & Streaks',
+                        description:
+                            'A brand-new mystery word puzzle every calendar day.\n• Complete it to maintain your daily fire streak.\n• Win +50 stars daily, with an option to double your reward to +100!',
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 7. Categories
+                      _buildGuideCard(
+                        theme: theme,
+                        isDark: isDark,
+                        icon: Icons.grid_view_rounded,
+                        color: const Color(0xffec4899),
+                        title: '4. Themed Categories',
+                        description:
+                            'Practice specific topics like Animals, Space, Sports, Food, and Nature.\n• Unlock higher categories by completing levels in Classic Adventure.',
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                  ),
+                ),
+
+                // Dismiss Button
+                PopButton(
+                  backgroundColor: AppTheme.primaryColor,
+                  depth: 4,
+                  shadowColor: const Color(0xff4338ca),
+                  borderRadius: BorderRadius.circular(20),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  onTap: () => Navigator.pop(modalCtx),
+                  child: const Center(
+                    child: Text(
+                      'GOT IT, LET\'S PLAY!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGuideCard({
+    required ThemeData theme,
+    required bool isDark,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String description,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 13,
+                    height: 1.45,
+                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
